@@ -1,8 +1,9 @@
-# github_login_test.py
+# github_turkeybot.py
 import requests
 import json
 import base64
 import time
+import random
 from io import BytesIO
 
 class GitHubBBSTurkeyBot:
@@ -16,6 +17,8 @@ class GitHubBBSTurkeyBot:
         # API 端点
         self.captcha_url = f"{self.api_base}/login/captcha"
         self.login_url = f"{self.api_base}/login"
+        self.create_thread_url = f"{self.api_base}/threads/create"  # 创建帖子
+        self.categories_url = f"{self.api_base}/categories"  # 获取板块列表
         
         # 重试配置
         self.max_login_attempts = 50
@@ -134,14 +137,14 @@ class GitHubBBSTurkeyBot:
                 result = response.json()
                 print(f"✅ 登录响应: {json.dumps(result, ensure_ascii=False)}")
                 
-                # 修复：正确判断登录成功
+                # 修复：直接检查 success 字段
                 if result.get('success') is True:
                     user_data = result.get('data', {})
-                    if 'id' in user_data or 'token' in user_data:
+                    if user_data and ('id' in user_data or 'token' in user_data):
                         print("🎉 登录成功!")
                         return True, result, None
                     else:
-                        error_msg = "响应中缺少用户数据"
+                        error_msg = "响应数据不完整"
                         print(f"❌ 登录失败: {error_msg}")
                         return False, None, error_msg
                 else:
@@ -203,51 +206,78 @@ class GitHubBBSTurkeyBot:
         print(f"💥 登录失败！已达到最大重试次数 {self.max_login_attempts}")
         return False, None
     
-    def test_api_connectivity(self):
-        """测试 API 连通性"""
+    def get_categories(self, token):
+        """获取论坛板块列表"""
         try:
-            print("🔗 测试 API 连通性...")
-            response = self.session.get(f"{self.api_base}/login/captcha", timeout=10)
-            print(f"📡 API 响应状态: {response.status_code}")
-            return response.status_code == 200
+            headers = {
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'application/json'
+            }
+            
+            print("📋 获取论坛板块列表...")
+            response = self.session.get(self.categories_url, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                result = response.json()
+                print("✅ 板块列表获取成功")
+                return result.get('data', [])
+            else:
+                print(f"❌ 获取板块列表失败: HTTP {response.status_code}")
+                return []
+                
         except Exception as e:
-            print(f"❌ API 连通性测试失败: {e}")
-            return False
-
-def main():
-    print("=" * 50)
-    print("🤖 MBBS TurkeyBot GitHub Actions 登录测试")
-    print("=" * 50)
+            print(f"❌ 获取板块列表异常: {e}")
+            return []
     
-    # 创建机器人实例
-    bot = GitHubBBSTurkeyBot()
+    def find_chat_category(self, categories):
+        """查找聊天板块"""
+        for category in categories:
+            name = category.get('name', '').lower()
+            if '聊天' in name or 'chat' in name:
+                print(f"✅ 找到聊天板块: {category.get('name')} (ID: {category.get('id')})")
+                return category.get('id')
+        
+        # 如果没有找到聊天板块，使用第一个板块
+        if categories:
+            first_category = categories[0]
+            print(f"⚠️ 未找到聊天板块，使用第一个板块: {first_category.get('name')} (ID: {first_category.get('id')})")
+            return first_category.get('id')
+        
+        print("❌ 未找到任何板块")
+        return None
     
-    # 测试连通性
-    if not bot.test_api_connectivity():
-        print("❌ API 无法访问，退出测试")
-        return
-    
-    # 执行登录（带重试）
-    start_time = time.time()
-    success, result = bot.login_with_retry()
-    end_time = time.time()
-    
-    print("\n" + "=" * 50)
-    print("📊 登录测试结果")
-    print("=" * 50)
-    print(f"✅ 状态: {'成功' if success else '失败'}")
-    print(f"⏱️ 耗时: {end_time - start_time:.2f} 秒")
-    
-    if success:
-        print("🎉 登录测试通过！")
-        # 保存 token 供后续使用
-        user_data = result.get('data', {})
-        token = user_data.get('token')
-        if token:
-            print(f"🔑 获取到 Token: {token[:10]}...")
-            # 这里可以继续发帖逻辑
-    else:
-        print("💥 登录测试失败")
-
-if __name__ == "__main__":
-    main()
+    def create_thread(self, token, category_id, title, content):
+        """创建帖子"""
+        try:
+            headers = {
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'application/json'
+            }
+            
+            thread_data = {
+                "category_id": category_id,
+                "title": title,
+                "content": content
+            }
+            
+            print(f"📝 创建帖子: {title}")
+            response = self.session.post(self.create_thread_url, json=thread_data, headers=headers, timeout=15)
+            
+            print(f"📊 发帖响应状态码: {response.status_code}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f"✅ 发帖响应: {json.dumps(result, ensure_ascii=False)}")
+                
+                if result.get('success') is True:
+                    thread_data = result.get('data', {})
+                    if 'id' in thread_data:
+                        print(f"🎉 发帖成功！帖子ID: {thread_data.get('id')}")
+                        return True, thread_data
+                    else:
+                        error_msg = "发帖响应数据不完整"
+                        print(f"❌ 发帖失败: {error_msg}")
+                        return False, None
+                else:
+                    error_msg = result.get('message', '未知错误')
+                    print(f"❌ 发帖失败: {erro
