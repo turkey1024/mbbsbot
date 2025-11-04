@@ -134,10 +134,16 @@ class GitHubBBSTurkeyBot:
                 result = response.json()
                 print(f"✅ 登录响应: {json.dumps(result, ensure_ascii=False)}")
                 
-                # 检查登录成功标志
-                if 'id' in result or 'token' in result:
-                    print("🎉 登录成功!")
-                    return True, result, None
+                # 修复：正确判断登录成功
+                if result.get('success') is True:
+                    user_data = result.get('data', {})
+                    if 'id' in user_data or 'token' in user_data:
+                        print("🎉 登录成功!")
+                        return True, result, None
+                    else:
+                        error_msg = "响应中缺少用户数据"
+                        print(f"❌ 登录失败: {error_msg}")
+                        return False, None, error_msg
                 else:
                     error_msg = result.get('message', '未知错误')
                     print(f"❌ 登录失败: {error_msg}")
@@ -234,7 +240,12 @@ def main():
     
     if success:
         print("🎉 登录测试通过！")
-        # 这里可以继续发帖逻辑
+        # 保存 token 供后续使用
+        user_data = result.get('data', {})
+        token = user_data.get('token')
+        if token:
+            print(f"🔑 获取到 Token: {token[:10]}...")
+            # 这里可以继续发帖逻辑
     else:
         print("💥 登录测试失败")
 
