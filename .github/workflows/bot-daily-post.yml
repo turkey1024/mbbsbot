@@ -21,8 +21,8 @@ jobs:
         
     - name: Install dependencies
       run: |
-        pip install requests ddddocr cairosvg pillow
+        pip install -r requirements.txt
         
     - name: Run TurkeyBot
       run: |
-        python github_turkeybot.py
+        python main.py
