@@ -2,6 +2,7 @@
 import requests
 import json
 import base64
+import time
 from io import BytesIO
 
 class GitHubBBSTurkeyBot:
@@ -15,6 +16,10 @@ class GitHubBBSTurkeyBot:
         # API 端点
         self.captcha_url = f"{self.api_base}/login/captcha"
         self.login_url = f"{self.api_base}/login"
+        
+        # 重试配置
+        self.max_login_attempts = 50
+        self.max_captcha_retries = 3
         
         self.session = requests.Session()
         self.session.headers.update({
@@ -72,51 +77,46 @@ class GitHubBBSTurkeyBot:
             print(f"❌ 获取验证码错误: {e}")
             return None, None
     
-    def recognize_captcha(self, svg_data: str) -> str:
-        """识别验证码"""
+    def recognize_captcha_with_retry(self, svg_data: str) -> str:
+        """识别验证码，确保结果为4位"""
         if not self.ocr:
             print("❌ ddddocr 未初始化")
-            return "FAIL"
+            return None
             
-        try:
-            # 转换 SVG 为 PNG
-            png_data = self.svg_to_png_cairosvg(svg_data)
-            if not png_data:
-                return "FAIL"
-            
-            # 识别验证码
-            result = self.ocr.classification(png_data)
-            
-            # 清理结果，只保留字母数字
-            import re
-            cleaned = re.sub(r'[^A-Za-z0-9]', '', result)
-            
-            if cleaned:
-                print(f"✅ 验证码识别结果: {cleaned.upper()}")
-                return cleaned.upper()
-            else:
-                return "FAIL"
+        for attempt in range(self.max_captcha_retries):
+            try:
+                print(f"🔍 第 {attempt + 1} 次尝试识别验证码...")
                 
-        except Exception as e:
-            print(f"❌ 验证码识别失败: {e}")
-            return "FAIL"
+                # 转换 SVG 为 PNG
+                png_data = self.svg_to_png_cairosvg(svg_data)
+                if not png_data:
+                    continue
+                
+                # 识别验证码
+                result = self.ocr.classification(png_data)
+                
+                # 清理结果，只保留字母数字，转为大写（大小写不敏感）
+                import re
+                cleaned = re.sub(r'[^A-Za-z0-9]', '', result).upper()
+                
+                if len(cleaned) == 4:
+                    print(f"✅ 验证码识别成功: {cleaned}")
+                    return cleaned
+                else:
+                    print(f"⚠️ 验证码长度异常: {cleaned} (长度: {len(cleaned)}), 重新识别...")
+                    
+            except Exception as e:
+                print(f"❌ 验证码识别失败: {e}")
+            
+            # 如果不是最后一次尝试，等待一下再重试
+            if attempt < self.max_captcha_retries - 1:
+                time.sleep(1)
+        
+        print("❌ 验证码识别重试次数用尽")
+        return None
     
-    def login(self):
-        """执行登录"""
-        print("🚀 开始登录流程...")
-        print(f"📝 用户名: {self.username}")
-        
-        # 1. 获取验证码
-        captcha_id, svg_data = self.get_login_captcha()
-        if not captcha_id:
-            return False, "获取验证码失败"
-        
-        # 2. 识别验证码
-        captcha_text = self.recognize_captcha(svg_data)
-        if captcha_text == "FAIL":
-            return False, "验证码识别失败"
-        
-        # 3. 执行登录
+    def login_with_captcha(self, captcha_id: str, captcha_text: str) -> tuple:
+        """使用验证码执行登录"""
         try:
             login_data = {
                 "username": self.username,
@@ -137,18 +137,65 @@ class GitHubBBSTurkeyBot:
                 # 检查登录成功标志
                 if 'id' in result or 'token' in result:
                     print("🎉 登录成功!")
-                    return True, result
+                    return True, result, None
                 else:
                     error_msg = result.get('message', '未知错误')
                     print(f"❌ 登录失败: {error_msg}")
-                    return False, error_msg
+                    return False, None, error_msg
             else:
                 print(f"❌ HTTP 错误: {response.status_code}")
-                return False, f"HTTP {response.status_code}"
+                return False, None, f"HTTP {response.status_code}"
                 
         except Exception as e:
             print(f"❌ 登录请求异常: {e}")
-            return False, str(e)
+            return False, None, str(e)
+    
+    def login_with_retry(self):
+        """执行登录，包含验证码错误重试"""
+        print("🚀 开始登录流程...")
+        print(f"📝 用户名: {self.username}")
+        print(f"🔄 最大重试次数: {self.max_login_attempts}")
+        print("=" * 50)
+        
+        login_attempts = 0
+        
+        while login_attempts < self.max_login_attempts:
+            login_attempts += 1
+            print(f"\n🔄 第 {login_attempts}/{self.max_login_attempts} 次登录尝试...")
+            
+            # 1. 获取验证码
+            captcha_id, svg_data = self.get_login_captcha()
+            if not captcha_id:
+                print("❌ 获取验证码失败，继续重试...")
+                time.sleep(2)
+                continue
+            
+            # 2. 识别验证码（确保4位）
+            captcha_text = self.recognize_captcha_with_retry(svg_data)
+            if not captcha_text:
+                print("❌ 验证码识别失败，继续重试...")
+                time.sleep(2)
+                continue
+            
+            # 3. 执行登录
+            success, result, error_msg = self.login_with_captcha(captcha_id, captcha_text)
+            
+            if success:
+                print(f"🎉 登录成功！总共尝试 {login_attempts} 次")
+                return True, result
+            
+            # 检查是否为验证码错误
+            if error_msg and ("验证码" in error_msg or "captcha" in error_msg.lower()):
+                print("🔄 验证码错误，立即重试...")
+                # 验证码错误时不增加等待时间，立即重试
+                continue
+            else:
+                # 其他错误，等待一下再重试
+                print(f"💤 其他错误，等待 2 秒后重试...")
+                time.sleep(2)
+        
+        print(f"💥 登录失败！已达到最大重试次数 {self.max_login_attempts}")
+        return False, None
     
     def test_api_connectivity(self):
         """测试 API 连通性"""
@@ -174,14 +221,22 @@ def main():
         print("❌ API 无法访问，退出测试")
         return
     
-    # 执行登录
-    success, result = bot.login()
+    # 执行登录（带重试）
+    start_time = time.time()
+    success, result = bot.login_with_retry()
+    end_time = time.time()
+    
+    print("\n" + "=" * 50)
+    print("📊 登录测试结果")
+    print("=" * 50)
+    print(f"✅ 状态: {'成功' if success else '失败'}")
+    print(f"⏱️ 耗时: {end_time - start_time:.2f} 秒")
     
     if success:
         print("🎉 登录测试通过！")
         # 这里可以继续发帖逻辑
     else:
-        print(f"💥 登录测试失败: {result}")
+        print("💥 登录测试失败")
 
 if __name__ == "__main__":
     main()
