@@ -1,0 +1,37 @@
+# .github/workflows/bot-login-test.yml
+name: TurkeyBot Login Test
+
+on:
+  workflow_dispatch:  # 手动触发
+  schedule:
+    - cron: '0 12 * * *'  # 每天 UTC 12:00 运行
+
+jobs:
+  login-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        pip install requests ddddocr cairosvg pillow
+        
+    - name: Run login test
+      run: |
+        python github_login_test.py
+        
+    - name: Upload logs
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: login-test-logs
+        path: |
+          *.log
+        retention-days: 1
