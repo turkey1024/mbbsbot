@@ -13,20 +13,19 @@ class BBSPoster:
         self.create_thread_url = f"{self.api_base}/threads/create"
     
     def create_thread(self, token, category_id, title, content):
-        """创建帖子 - 直接将token添加到请求数据中"""
+        """创建帖子"""
         try:
-            # 直接将token添加到请求数据中（方式3）
+            # 只使用成功的认证方式：方式3（直接使用token）
+            headers = {'Authorization': token, 'Content-Type': 'application/json'}
+            
             thread_data = {
                 "category_id": category_id,
                 "title": title,
-                "content": content,
-                "token": token  # 关键：将token作为参数传递
+                "content": content
             }
             
-            headers = {'Content-Type': 'application/json'}
-            
             print(f"📝 创建帖子: {title}")
-            print(f"🔑 使用Token: {token[:10]}...")
+            print(f"🔑 使用认证方式: 直接Token认证")
             
             response = self.session.post(
                 self.create_thread_url, 
