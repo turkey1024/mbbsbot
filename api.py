@@ -16,11 +16,11 @@ class ContentAPI:
         self.alapi_token = "t6rshmnm0sfqfyfpvttaj5kocefnck"
         self.session = requests.Session()
         
-        # 设置重试策略
+        # 设置重试策略 - 兼容新版本 urllib3
         retry_strategy = Retry(
             total=3,
             status_forcelist=[429, 500, 502, 503, 504],
-            method_whitelist=["HEAD", "GET", "OPTIONS"],
+            allowed_methods=["HEAD", "GET", "OPTIONS"],  # 使用 allowed_methods 替代 method_whitelist
             backoff_factor=1
         )
         
