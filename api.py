@@ -13,7 +13,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 class ContentAPI:
     def __init__(self):
         # 硬编码 API tokens
-        self.zhihu_token = "t6rshmnm0sfqfyfpvttaj5kocefnck"
+        self.zhihu_token = "p2wpki7ps4qgtx51xzbfw6yjvkzgpk"
         self.weibo_token = "p2wpki7ps4qgtx51xzbfw6yjvkzgpk"
         self.news_token = "p2wpki7ps4qgtx51xzbfw6yjvkzgpk"
         self.acg_token = "p2wpki7ps4qgtx51xzbfw6yjvkzgpk"
@@ -376,7 +376,7 @@ class ContentAPI:
         else:
             full_content += "今日微博热搜内容获取失败，请稍后重试。\n\n"
         
-        full_content += "## 🖼️ 美图\n\n"
+        full_content += "## ❤ ACG动漫图片\n\n"
         if acg_content:
             full_content += acg_content + "\n\n"
         else:
@@ -411,5 +411,7 @@ class ContentAPI:
 今日美图内容获取失败，请稍后重试。
 
 广告位
+
+！！！turkeybot运行出错，请联系turkey1024
 
 *本帖由 TurkeyBot 自动生成*"""
