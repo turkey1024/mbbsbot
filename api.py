@@ -7,7 +7,7 @@ from datetime import datetime
 class ContentAPI:
     def __init__(self):
         # 硬编码 ALAPI_TOKEN
-        self.alapi_token = "你的ALAPI_TOKEN"  # 替换为实际的token
+        self.alapi_token = "t6rshmnm0sfqfyfpvttaj5kocefnck"  # 替换为实际的token
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Termux) AppleWebKit/537.36',
