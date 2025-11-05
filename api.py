@@ -356,7 +356,7 @@ class ContentAPI:
         acg_content = self.fetch_acg_image()
         
         # 构建完整的帖子内容
-        full_content = "置顶广告位\n\n"
+        full_content = "[turkey导航站](ljx.is-not.cool) | [turkey1024](https://mk48by049.mbbs.cc/#/user/detail?id=2267)\n\n"
         full_content += "## 📰 知乎日报\n\n"
         
         if zhihu_content:
@@ -382,7 +382,7 @@ class ContentAPI:
         else:
             full_content += "今日美图内容获取失败，请稍后重试。\n\n"
         
-        full_content += "广告位\n\n"
+        full_content += "广告位招租\n\n"
         full_content += "*本帖由 TurkeyBot 自动生成*"
         
         return full_content
