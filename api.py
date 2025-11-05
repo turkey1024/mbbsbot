@@ -356,7 +356,7 @@ class ContentAPI:
         acg_content = self.fetch_acg_image()
         
         # 构建完整的帖子内容
-        full_content = "[turkey导航站](ljx.is-not.cool) | [turkey1024](https://mk48by049.mbbs.cc/#/user/detail?id=2267)\n\n"
+        full_content = "[turkey导航站](https://ljx.is-not.cool) | [turkey1024](https://mk48by049.mbbs.cc/#/user/detail?id=2267)\n\n"
         full_content += "## 📰 知乎日报\n\n"
         
         if zhihu_content:
