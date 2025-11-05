@@ -3,12 +3,32 @@ import requests
 import json
 import time
 from datetime import datetime
+import urllib3
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# 禁用 SSL 警告
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class ContentAPI:
     def __init__(self):
         # 硬编码 ALAPI_TOKEN
-        self.alapi_token = "t6rshmnm0sfqfyfpvttaj5kocefnck"  # 替换为实际的token
+        self.alapi_token = "t6rshmnm0sfqfyfpvttaj5kocefnck"
         self.session = requests.Session()
+        
+        # 设置重试策略
+        retry_strategy = Retry(
+            total=3,
+            status_forcelist=[429, 500, 502, 503, 504],
+            method_whitelist=["HEAD", "GET", "OPTIONS"],
+            backoff_factor=1
+        )
+        
+        # 创建适配器并禁用 SSL 验证
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+        
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Termux) AppleWebKit/537.36',
             'Accept': 'application/json, text/plain, */*'
@@ -22,7 +42,8 @@ class ContentAPI:
             api_url = f"https://v3.alapi.cn/api/zhihu?token={self.alapi_token}"
             print(f"🔗 API URL: {api_url}")
             
-            response = self.session.get(api_url, timeout=15)
+            # 禁用 SSL 验证
+            response = self.session.get(api_url, timeout=15, verify=False)
             
             if response.status_code == 200:
                 data = response.json()
