@@ -13,6 +13,7 @@ class BBSPoster:
         self.list_threads_url = f"{self.api_base}/threads/list"
         self.list_posts_url = f"{self.api_base}/posts/list"
         self.create_post_url = f"{self.api_base}/posts/create"
+        self.create_comment_url = f"{self.api_base}/posts/createComment"
     
     def create_thread(self, token, category_id, title, content):
         """创建帖子（原有功能）"""
@@ -90,7 +91,7 @@ class BBSPoster:
         return False
     
     def create_comment(self, token, thread_id, content):
-        """创建评论"""
+        """创建评论（一级评论）"""
         try:
             headers = {'Authorization': token, 'Content-Type': 'application/json'}
             
@@ -117,3 +118,52 @@ class BBSPoster:
         except Exception as e:
             print(f"❌ 评论发布异常: {e}")
             return False
+    
+    def create_comment_reply(self, token, post_id, content, comment_post_id=None):
+        """创建评论回复（二级评论，回复特定评论）"""
+        try:
+            headers = {'Authorization': token, 'Content-Type': 'application/json'}
+            
+            post_data = {
+                "post_id": post_id,
+                "content": content
+            }
+            
+            if comment_post_id:
+                post_data["comment_post_id"] = comment_post_id
+            
+            response = self.session.post(self.create_comment_url, json=post_data, headers=headers, timeout=15)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success') is True:
+                    print(f"✅ 评论回复发布成功！评论ID: {post_id}")
+                    return True
+                else:
+                    error_msg = result.get('message', '未知错误')
+                    print(f"❌ 评论回复发布失败: {error_msg}")
+                    return False
+            else:
+                print(f"❌ 评论回复发布HTTP错误: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ 评论回复发布异常: {e}")
+            return False
+    
+    def check_mentions(self, content):
+        """检查内容中是否包含提及机器人的关键词"""
+        mention_keywords = [
+            '@turkeybot', 
+            '@turkey', 
+            '@论坛机器人', 
+            '@机器人',
+            'turkeybot',
+            '论坛机器人'
+        ]
+        
+        for keyword in mention_keywords:
+            if keyword.lower() in content.lower():
+                return True, keyword
+        return False, None
+
