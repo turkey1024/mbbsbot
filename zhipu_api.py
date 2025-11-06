@@ -42,7 +42,7 @@ class ZhipuAIClient:
             print("🔄 使用zai-sdk调用智谱API...")
             print(f"📝 帖子内容预览: {post_content[:100]}...")
             
-            # 根据官方文档示例调用API
+            # 禁用思考模式
             response = self.client.chat.completions.create(
                 model="glm-4.5-flash",
                 messages=[
@@ -52,7 +52,7 @@ class ZhipuAIClient:
                     }
                 ],
                 thinking={
-                    "type": "enabled"  # 启用思考模式
+                    "type": "disabled"  # 禁用思考模式
                 },
                 stream=False,  # 非流式输出
                 max_tokens=max_tokens,
@@ -61,12 +61,15 @@ class ZhipuAIClient:
             
             print(f"✅ API调用成功，响应类型: {type(response)}")
             
-            # 处理响应（根据zai-sdk的响应结构）
+            # 处理响应（禁用思考模式后，内容应该在message.content中）
             if hasattr(response, 'choices') and len(response.choices) > 0:
-                if hasattr(response.choices[0], 'message') and hasattr(response.choices[0].message, 'content'):
-                    comment = response.choices[0].message.content.strip()
+                choice = response.choices[0]
+                
+                # 直接获取message.content
+                if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
+                    comment = choice.message.content.strip()
                     
-                    if comment:
+                    if comment and comment != "\\n":  # 检查是否为空或只有换行符
                         print(f"✅ 成功获取AI评论: {comment}")
                         return self._clean_comment(comment)
             
@@ -80,11 +83,15 @@ class ZhipuAIClient:
             # 尝试从字典中获取内容
             if 'choices' in response_dict and len(response_dict['choices']) > 0:
                 choice = response_dict['choices'][0]
-                if 'message' in choice and 'content' in choice['message']:
-                    comment = choice['message']['content'].strip()
-                    if comment:
-                        print(f"✅ 从字典获取评论: {comment}")
-                        return self._clean_comment(comment)
+                if hasattr(choice, '__dict__'):
+                    choice_dict = choice.__dict__
+                    if 'message' in choice_dict and hasattr(choice_dict['message'], '__dict__'):
+                        message_dict = choice_dict['message'].__dict__
+                        if 'content' in message_dict and message_dict['content']:
+                            comment = message_dict['content'].strip()
+                            if comment and comment != "\\n":
+                                print(f"✅ 从字典获取评论: {comment}")
+                                return self._clean_comment(comment)
             
             print("❌ 无法从响应中提取评论内容")
             return self._get_fallback_comment()
