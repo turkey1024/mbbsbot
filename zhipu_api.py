@@ -14,34 +14,17 @@ class ZhipuAIClient:
         self.client = zai.ZhipuAiClient(api_key=self.api_key)
         
         print("✅ 智谱API客户端初始化成功，使用zai-sdk")
+        print(f"✅ zai-sdk版本: {zai.__version__}")
     
-    def generate_comment(self, post_content, max_tokens=200, is_mention=False, mention_content=""):
+    def generate_comment(self, post_content, max_tokens=200):
         """使用智谱API生成评论内容"""
         try:
             # 简化内容，避免过长
             if len(post_content) > 500:
                 post_content = post_content[:500] + "..."
             
-            # 根据是否是被提及来构建不同的提示词
-            if is_mention and mention_content:
-                prompt = f"""
-你是一个论坛机器人，用户通过以下方式提到了你：{mention_content}
-
-请根据用户的提及内容，生成一个有针对性的回复。如果是要求总结帖子，请简要总结帖子内容；如果是提问，请给出专业回答；如果是闲聊，请友好回应。
-
-帖子内容：
-{post_content}
-
-请生成一个50-150字的回复，要求：
-1. 直接回应用户的提及
-2. 保持专业友好的语气
-3. 如果用户要求总结，请简洁明了地总结帖子要点
-4. 如果用户提问，请给出有价值的回答
-
-请直接生成回复内容，不要添加任何前缀或说明。
-"""
-            else:
-                prompt = f"""
+            # 构建提示词
+            prompt = f"""
 请根据以下论坛帖子内容，生成一个简短、友好且有意义的评论。
 
 帖子内容：
@@ -57,6 +40,7 @@ class ZhipuAIClient:
 """
             
             print("🔄 使用zai-sdk调用智谱API...")
+            print(f"📝 帖子内容预览: {post_content[:100]}...")
             
             # 禁用思考模式
             response = self.client.chat.completions.create(
@@ -75,7 +59,9 @@ class ZhipuAIClient:
                 temperature=0.7
             )
             
-            # 处理响应
+            print(f"✅ API调用成功，响应类型: {type(response)}")
+            
+            # 处理响应（禁用思考模式后，内容应该在message.content中）
             if hasattr(response, 'choices') and len(response.choices) > 0:
                 choice = response.choices[0]
                 
@@ -87,12 +73,32 @@ class ZhipuAIClient:
                         print(f"✅ 成功获取AI评论: {comment}")
                         return self._clean_comment(comment)
             
+            # 如果上述方式不成功，尝试其他方式解析响应
+            print("🔍 尝试其他方式解析响应...")
+            
+            # 将响应转换为字典查看结构
+            response_dict = response.__dict__ if hasattr(response, '__dict__') else {}
+            print(f"🔍 响应结构: {json.dumps(response_dict, ensure_ascii=False, default=str)}")
+            
+            # 尝试从字典中获取内容
+            if 'choices' in response_dict and len(response_dict['choices']) > 0:
+                choice = response_dict['choices'][0]
+                if hasattr(choice, '__dict__'):
+                    choice_dict = choice.__dict__
+                    if 'message' in choice_dict and hasattr(choice_dict['message'], '__dict__'):
+                        message_dict = choice_dict['message'].__dict__
+                        if 'content' in message_dict and message_dict['content']:
+                            comment = message_dict['content'].strip()
+                            if comment and comment != "\\n":
+                                print(f"✅ 从字典获取评论: {comment}")
+                                return self._clean_comment(comment)
+            
             print("❌ 无法从响应中提取评论内容")
-            return self._get_fallback_comment(is_mention)
+            return self._get_fallback_comment()
             
         except Exception as e:
             print(f"❌ zai-sdk调用异常: {e}")
-            return self._get_fallback_comment(is_mention)
+            return self._get_fallback_comment()
     
     def _clean_comment(self, comment):
         """清理评论内容"""
@@ -110,24 +116,18 @@ class ZhipuAIClient:
             
         return comment
     
-    def _get_fallback_comment(self, is_mention=False):
+    def _get_fallback_comment(self):
         """获取备选评论"""
-        if is_mention:
-            fallback_comments = [
-                "收到您的提及！我会认真阅读帖子内容并给出回复。",
-                "感谢您的提及，我正在分析帖子内容...",
-                "您好！我看到您提到了我，有什么可以帮您的吗？"
-            ]
-        else:
-            fallback_comments = [
-                "观点很有启发性！",
-                "内容很实用，谢谢分享！",
-                "这个话题很有意思！",
-                "学到了新知识！",
-                "感谢分享宝贵经验！"
-            ]
+        fallback_comments = [
+            "观点很有启发性！",
+            "内容很实用，谢谢分享！",
+            "这个话题很有意思！",
+            "学到了新知识！",
+            "感谢分享宝贵经验！"
+        ]
         import random
         fallback = random.choice(fallback_comments)
         print(f"🔄 使用备选评论: {fallback}")
         return fallback
+
 
