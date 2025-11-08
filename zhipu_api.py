@@ -23,7 +23,7 @@ class ZhipuAIClient:
                 messages=[{"role": "user", "content": prompt}],
                 thinking={"type": "disabled"},
                 stream=False,
-                max_tokens=max_tokens,
+                max_tokens="114514",
                 temperature=0.7 if is_mention else 0.8
             )
             
