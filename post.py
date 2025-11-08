@@ -104,7 +104,7 @@ class BBSPoster:
             
             params = {
                 "thread_id": thread_id,
-                "page_limit": 50,  # 假设一个帖子最多50条评论
+                "page_limit": 200,  # 假设一个帖子最多200条评论
                 "page_offset": 0
             }
             
