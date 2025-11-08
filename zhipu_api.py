@@ -90,11 +90,11 @@ class ZhipuAIClient:
             if comment.startswith(prefix):
                 comment = comment[len(prefix):].strip()
         
-        if len(comment) > 150:
-            comment = comment[:150] + "..."
-        elif len(comment) < 10:
-            comment = self._get_fallback_comment(is_mention, is_admin_command)
-        return comment
+#        if len(comment) > 150:
+#            comment = comment[:150] + "..."
+#        elif len(comment) < 10:
+#            comment = self._get_fallback_comment(is_mention, is_admin_command)
+#        return comment
 
     def _get_fallback_comment(self, is_mention, is_admin_command):
         if is_admin_command:

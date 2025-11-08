@@ -17,7 +17,7 @@ class AutoCommentBot:
         self.user_id = None
         
         self.target_categories = [2]
-        self.max_threads_to_check = 15
+        self.max_threads_to_check = 50
         self.comment_interval = 1800
         self.bot_keywords = ['turkeybot', 'bot', '机器人', '论坛机器人']
         
