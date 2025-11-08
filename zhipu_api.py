@@ -7,7 +7,7 @@ class ZhipuAIClient:
         self.client = zai.ZhipuAiClient(api_key=self.api_key)
         print("✅ 智谱API客户端初始化成功")
 
-    def generate_comment(self, post_content, is_mention=False, is_admin_command=False, thread_title="", max_tokens=200):
+    def generate_comment(self, post_content, is_mention=False, is_admin_command=False, thread_title="", max_tokens=114514):
         try:
             full_content = f"帖子标题：{thread_title}\n帖子内容：{post_content}"
             
@@ -23,7 +23,7 @@ class ZhipuAIClient:
                 messages=[{"role": "user", "content": prompt}],
                 thinking={"type": "disabled"},
                 stream=False,
-                max_tokens="114514",
+                max_tokens=max_tokens,
                 temperature=0.7 if is_mention else 0.8
             )
             
