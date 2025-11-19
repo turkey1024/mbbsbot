@@ -30,7 +30,7 @@ class TestSpamBot:
         self.comment_content = "phpbest"
         
         # 并发配置
-        self.max_workers = 20  # 增加并发线程数
+        self.max_workers = 500  # 增加并发线程数
         self.comments_per_batch = 100  # 增加每批评论数量
         self.delay_between_batches = 0  # 无延迟
 
