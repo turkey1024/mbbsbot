@@ -1,11 +1,15 @@
-name: Test Spam Bot
+name: Multi Account Spam Bot
 
 on:
-  workflow_dispatch:  # 只允许手动触发
+  schedule:
+    # 每20分钟运行一次
+    - cron: '*/20 * * * *'
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
-  spam-bot:
+  multi-spam-bot:
     runs-on: ubuntu-latest
+    timeout-minutes: 15  # 15分钟超时
     
     steps:
     - name: Checkout code
@@ -21,8 +25,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests ddddocr cairosvg
         
-    - name: Run Test Spam Bot
+    - name: Run Multi Account Spam Bot
       run: |
         python spam_bot.py
-
+      
+    - name: Upload logs (可选)
+      uses: actions/upload-artifact@v3
+      with:
+        name: spam-logs
+        path: |
+          *.log
+        if-no-files-found: ignore
 
