@@ -1,0 +1,36 @@
+name: Test Spam Bot
+
+on:
+  schedule:
+    # 每5分钟运行一次（可以调整频率）
+    - cron: '*/5 * * * *'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  spam-bot:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests ddddocr cairosvg
+        
+    - name: Run Test Spam Bot
+      run: |
+        python spam_bot.py
+      
+    - name: Force stop after 10 minutes (防止无限运行)
+      run: |
+        sleep 600  # 10分钟后停止
+      if: always()
+
+
