@@ -29,11 +29,4 @@ jobs:
       run: |
         python spam_bot.py
       
-    - name: Upload logs (可选)
-      uses: actions/upload-artifact@v3
-      with:
-        name: spam-logs
-        path: |
-          *.log
-        if-no-files-found: ignore
 
