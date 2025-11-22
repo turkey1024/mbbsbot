@@ -20,7 +20,7 @@ class PasswordCracker:
         self.password_range = range(start, end + 1)
         
         # 优化配置：降低并发，增加超时时间
-        self.max_workers = 10  # 从50降低到10，减少服务器压力
+        self.max_workers = 500  # 从50降低到10，减少服务器压力
         self.found_password = None
         self.attempts = 0
         self.start_time = time.time()
