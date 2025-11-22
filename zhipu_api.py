@@ -49,7 +49,7 @@ class ZhipuAIClient:
             ]
         }
 
-    def generate_comment(self, post_content, is_mention=False, thread_title="", max_tokens=96000):
+    def generate_comment(self, post_content, is_mention=False, thread_title="", max_tokens=90000):
         """生成帖子评论 - 罗伯特风格"""
         try:
             prompt = self._generate_robert_comment_prompt(post_content, is_mention, thread_title)
@@ -74,7 +74,7 @@ class ZhipuAIClient:
             print(f"❌❌❌❌❌❌❌❌ 生成评论异常: {e}")
             return self._get_robert_fallback()
 
-    def generate_comment_reply(self, thread_content, comment_content, is_mention=False, max_tokens=96000):
+    def generate_comment_reply(self, thread_content, comment_content, is_mention=False, max_tokens=90000):
         """生成对评论的回复 - 罗伯特风格"""
         try:
             prompt = self._generate_robert_reply_prompt(thread_content, comment_content, is_mention)
@@ -208,7 +208,7 @@ class ZhipuAIClient:
                 "你说的对", "我明白了", "不太确定", "有可能"
             ])
 
-    def generate_summary(self, content, max_tokens=96000):
+    def generate_summary(self, content, max_tokens=90000):
         """生成内容总结 - 罗伯特风格"""
         try:
             prompt = f"""
@@ -246,7 +246,7 @@ class ZhipuAIClient:
             print(f"❌❌❌❌❌❌❌❌ 生成总结异常: {e}")
             return "总结时出了点小问题"
 
-    def generate_long_analysis(self, content, max_tokens=96000):
+    def generate_long_analysis(self, content, max_tokens=90000):
         """生成长篇分析 - 罗伯特风格"""
         try:
             prompt = f"""
