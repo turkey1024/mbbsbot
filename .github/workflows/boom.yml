@@ -13,11 +13,10 @@ env:
 jobs:
   crack-password:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 3小时超时
+    timeout-minutes: 180  # 3小时超时
     
     strategy:
       matrix:
-        # 分段运行不同的密码范围
         segment: [
           "100000-199999",
           "200000-299999", 
@@ -53,27 +52,36 @@ jobs:
         python boom.py
 
     - name: Save password and commit if found
-      if: always()  # 无论爆破是否成功都运行
+      if: always()
       run: |
-        # 检查是否有密码文件生成
-        if [ -f "found_password.txt" ]; then
-          echo "🔑 发现密码文件，准备提交..."
-          
-          # 配置git用户
+        # 保存日志文件
+        if [ -d "logs" ]; then
+          echo "📝 保存日志文件..."
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
-          # 添加密码文件
-          git add found_password.txt
-          
-          # 提交更改
-          git commit -m "🎉 密码爆破成功 - 发现shangde账户密码 $(date +'%Y-%m-%d %H:%M:%S')"
-          
-          # 推送更改
-          git push
-          
-          echo "✅ 密码已保存并提交到仓库"
-        else
-          echo "❌ 未找到密码文件，爆破继续..."
+          git add logs/
+          git commit -m "📝 更新爆破日志文件" || echo "没有新的日志文件"
         fi
+        
+        # 保存密码文件
+        if [ -f "found_password.txt" ]; then
+          echo "🔑 发现密码文件，准备提交..."
+          git add found_password.txt
+          git commit -m "🎉 密码爆破成功 - 发现shangde账户密码 $(date +'%Y-%m-%d %H:%M:%S')"
+          git push
+          echo "✅ 密码和日志已保存并提交到仓库"
+        else
+          echo "❌ 未找到密码文件"
+          git push || echo "没有新的提交"
+        fi
+
+    - name: Upload logs artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: cracker-logs-${{ matrix.segment }}
+        path: |
+          logs/
+          found_password.txt
+        retention-days: 30
 
