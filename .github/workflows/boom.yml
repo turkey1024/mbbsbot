@@ -13,7 +13,7 @@ env:
 jobs:
   crack-password:
     runs-on: ubuntu-latest
-    timeout-minutes: 180  # 3小时超时
+    timeout-minutes: 360  # 3小时超时
     
     strategy:
       matrix:
