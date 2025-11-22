@@ -20,7 +20,7 @@ class PasswordCracker:
         self.password_range = range(start, end + 1)
         
         # 高频配置
-        self.max_workers = 50
+        self.max_workers = 500
         self.found_password = None
         self.attempts = 0
         self.start_time = time.time()
