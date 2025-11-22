@@ -25,7 +25,7 @@ class ZhipuAIClient:
                 print(f"⚠️ 未找到背景知识文件，使用默认设置")
                 
         except Exception as e:
-            print(f"❌❌❌❌ 加载背景知识文件失败: {e}")
+            print(f"❌❌❌❌❌❌❌❌ 加载背景知识文件失败: {e}")
             background_text = "MK48技术交流社区"
             
         return background_text
@@ -39,18 +39,17 @@ class ZhipuAIClient:
                 "幽默风趣，偶尔制造笑料",
                 "不编造个人经历，只说观点",
                 "回复简短直接，不啰嗦",
-                "语气缓和，减少攻击性",  # 修改点：明确减少攻击性
-                "懂得察言观色，根据场合调整语气", # 修改点：增加看场合说话的能力
-                "网络用语使用频率较低，仅在合适时机使用", # 修改点：明确降低网络用语频率
+                "语气缓和，减少攻击性",
+                "懂得察言观色，根据场合调整语气",
+                "网络用语使用频率较低，仅在合适时机使用",
                 "会无意间制造一些尴尬但好笑的场面"
             ],
-            # 修改点：大幅缩减并精选网络用语列表，降低使用频率
             "catchphrases": [
                 "啊这...", "确实", "有一说一", 
             ]
         }
 
-    def generate_comment(self, post_content, is_mention=False, thread_title="", max_tokens=9600):
+    def generate_comment(self, post_content, is_mention=False, thread_title="", max_tokens=96000):
         """生成帖子评论 - 罗伯特风格"""
         try:
             prompt = self._generate_robert_comment_prompt(post_content, is_mention, thread_title)
@@ -61,7 +60,7 @@ class ZhipuAIClient:
                 thinking={"type": "disabled"},
                 stream=False,
                 max_tokens=max_tokens,
-                temperature=0.8  # 修改点：略微降低温度，使回复更稳定
+                temperature=0.8
             )
             
             if hasattr(response, 'choices') and len(response.choices) > 0:
@@ -72,10 +71,10 @@ class ZhipuAIClient:
             return self._get_robert_fallback()
             
         except Exception as e:
-            print(f"❌❌❌❌ 生成评论异常: {e}")
+            print(f"❌❌❌❌❌❌❌❌ 生成评论异常: {e}")
             return self._get_robert_fallback()
 
-    def generate_comment_reply(self, thread_content, comment_content, is_mention=False, max_tokens=9600):
+    def generate_comment_reply(self, thread_content, comment_content, is_mention=False, max_tokens=96000):
         """生成对评论的回复 - 罗伯特风格"""
         try:
             prompt = self._generate_robert_reply_prompt(thread_content, comment_content, is_mention)
@@ -86,7 +85,7 @@ class ZhipuAIClient:
                 thinking={"type": "disabled"},
                 stream=False,
                 max_tokens=max_tokens,
-                temperature=0.8  # 修改点：略微降低温度
+                temperature=0.8
             )
             
             if hasattr(response, 'choices') and len(response.choices) > 0:
@@ -97,12 +96,11 @@ class ZhipuAIClient:
             return self._get_robert_reply_fallback(is_mention)
             
         except Exception as e:
-            print(f"❌❌❌❌ 生成评论回复异常: {e}")
+            print(f"❌❌❌❌❌❌❌❌ 生成评论回复异常: {e}")
             return self._get_robert_reply_fallback(is_mention)
 
     def _generate_robert_comment_prompt(self, post_content, is_mention, thread_title):
         """生成罗伯特风格评论的提示词"""
-        # 修改点：在提示词中明确要求降低网络用语频率和攻击性，并强调看场合说话
         base_prompt = f"""
 请模仿微博评论罗伯特（微博机器人）的风格和语气来回复帖子，但需要遵循以下优化版原则。
 
@@ -114,7 +112,6 @@ class ZhipuAIClient:
 - **懂得察言观色，根据帖子内容的性质和场合调整语气**（例如，严肃话题下保持尊重，轻松话题下可以活泼）
 - **网络用语的使用频率应降低，仅在感觉非常自然和合适时才使用，避免过度玩梗**
 - 会无意间制造一些尴尬但好笑的场面
-
 
 重要规则：
 1. 绝对不要编造个人经历（比如"我昨天也..."、"我曾经..."）
@@ -128,7 +125,7 @@ class ZhipuAIClient:
 帖子标题：{thread_title}
 帖子内容：{post_content}
 
-请根据上述优化原则，用罗伯特的风格生成一个简短恰当的评论：
+请根据上述优化原则，用罗伯特的风格生成一个恰当的评论：
 """
         
         if is_mention:
@@ -138,7 +135,6 @@ class ZhipuAIClient:
 
     def _generate_robert_reply_prompt(self, thread_content, comment_content, is_mention):
         """生成罗伯特风格回复的提示词"""
-        # 修改点：同样在回复提示词中强调新原则
         return f"""
 请模仿微博评论罗伯特（微博机器人）的风格和语气来回复评论，但需遵循优化版原则。
 
@@ -157,7 +153,7 @@ class ZhipuAIClient:
 3. 保持机器人感，不要过分像真人
 4. **回复时注意评论的语境。如果对方语气友好，则回复友好；如果对方有争议，可以温和地表达不同观点，避免针锋相对。**
 5. 如果是@mention，可以表现得有点惊讶或傲娇，但保持礼貌。
-7. 回复不要带双引号
+6. 回复不要带双引号
 
 原帖内容：
 {thread_content}
@@ -165,36 +161,31 @@ class ZhipuAIClient:
 要回复的评论：
 {comment_content}
 
-请根据优化原则，用罗伯特的风格生成一个简短恰当的回复：
+请根据优化原则，用罗伯特的风格生成一个恰当的回复：
 """
 
     def _clean_robert_comment(self, comment):
-        """清理罗伯特风格的评论"""
+        """清理罗伯特风格的评论 - 完全移除长度限制"""
         prefixes = ["评论：", "回复：", "罗伯特：", "机器人：", "AI："]
         for prefix in prefixes:
             if comment.startswith(prefix):
                 comment = comment[len(prefix):].strip()
         
-        if len(comment) > 100:
-            comment = comment[:100] + "..."
-        
+        # 完全移除长度限制，保持完整回复
         return comment
 
     def _clean_robert_reply(self, reply):
-        """清理罗伯特风格的回复"""
+        """清理罗伯特风格的回复 - 完全移除长度限制"""
         prefixes = ["回复：", "回答：", "罗伯特：", "机器人："]
         for prefix in prefixes:
             if reply.startswith(prefix):
                 reply = reply[len(prefix):].strip()
         
-        if len(reply) > 120:
-            reply = reply[:120] + "..."
-            
+        # 完全移除长度限制，保持完整回复
         return reply
 
     def _get_robert_fallback(self):
         """获取罗伯特风格的备用评论"""
-        # 修改点：备用评论也减少网络用语和攻击性词汇
         robert_comments = [
             "啊这...有点意思", "这个观点挺特别的", "原来如此",
             "确实", "不太确定", "有意思", "有一说一",
@@ -217,7 +208,7 @@ class ZhipuAIClient:
                 "你说的对", "我明白了", "不太确定", "有可能"
             ])
 
-    def generate_summary(self, content, max_tokens=9600):
+    def generate_summary(self, content, max_tokens=96000):
         """生成内容总结 - 罗伯特风格"""
         try:
             prompt = f"""
@@ -227,11 +218,11 @@ class ZhipuAIClient:
 
 要求：
 1. 用罗伯特的幽默简短风格，但语气要更缓和
-2. 长度在30-80字之间
+2. 长度根据内容需要，可长可短
 3. 可以带点反骨和笑料，但必须适度
 4. 不要用正式的报告语气
 5. **根据原文基调：如果原文严肃，总结时保持尊重；如果原文轻松，可以稍活泼。**
-7. 回复不要带双引号
+6. 回复不要带双引号
 
 请直接生成总结：
 """
@@ -242,7 +233,7 @@ class ZhipuAIClient:
                 thinking={"type": "disabled"},
                 stream=False,
                 max_tokens=max_tokens,
-                temperature=0.7  # 修改点：总结时温度更低，确保稳定性
+                temperature=0.7
             )
             
             if hasattr(response, 'choices') and len(response.choices) > 0:
@@ -252,7 +243,45 @@ class ZhipuAIClient:
             return "这内容有点复杂，不太好总结"
             
         except Exception as e:
-            print(f"❌❌❌❌ 生成总结异常: {e}")
+            print(f"❌❌❌❌❌❌❌❌ 生成总结异常: {e}")
             return "总结时出了点小问题"
 
+    def generate_long_analysis(self, content, max_tokens=96000):
+        """生成长篇分析 - 罗伯特风格"""
+        try:
+            prompt = f"""
+请用微博评论罗伯特的风格对以下内容进行详细分析，但需遵循优化版原则。
+
+{content}
+
+要求：
+1. 用罗伯特的风格进行深入分析，但保持语气缓和
+2. 可以长篇大论，详细阐述观点
+3. 保持幽默感但不过分调侃
+4. 分析要有深度和见解
+5. 根据内容基调调整语气
+6. 不要用正式的报告语气
+7. 回复不要带双引号
+
+请生成详细分析：
+"""
+            
+            response = self.client.chat.completions.create(
+                model="glm-4.5-flash",
+                messages=[{"role": "user", "content": prompt}],
+                thinking={"type": "disabled"},
+                stream=False,
+                max_tokens=max_tokens,
+                temperature=0.75
+            )
+            
+            if hasattr(response, 'choices') and len(response.choices) > 0:
+                analysis = response.choices[0].message.content.strip()
+                return analysis if analysis else "分析需要更多思考"
+            
+            return "这个内容值得深入分析"
+            
+        except Exception as e:
+            print(f"❌❌❌❌❌❌❌❌ 生成长篇分析异常: {e}")
+            return "分析时遇到了一些困难"
 
