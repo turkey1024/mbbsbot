@@ -1,6 +1,6 @@
 from login import BBSTurkeyBotLogin
 from post import BBSPoster
-from zhipu_api import ZhipuAIClient
+from zhipu_api_cat import ZhipuAIClient
 import time
 from datetime import datetime
 import os
