@@ -3,7 +3,7 @@ name: Auto Comment Bot
 on:
   schedule:
     # 每60分钟运行一次
-    - cron: '*/6011122 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:  # 允许手动触发
 
 jobs:
