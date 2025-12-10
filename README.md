@@ -9,6 +9,8 @@ mgc.txt是bot回避的敏感词
 目前用于 mk48by049.mbbs.cc  
 如有疑问 联系 wxid_b6320udsdwdr22  
 
+目前降低运行频率，节约action资源。  
+拥抱开源社区，拒绝滥用！  
 
 
 
