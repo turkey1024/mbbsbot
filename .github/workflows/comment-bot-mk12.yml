@@ -25,5 +25,5 @@ jobs:
         
     - name: Run Auto Comment Bot
       run: |
-        python comment_bot.py
+        python comment_bot_mk12.py
 
