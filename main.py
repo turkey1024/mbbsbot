@@ -27,7 +27,7 @@ def main():
     
     # 生成标题（包含日期）
     current_date = datetime.now().strftime('%Y-%m-%d')
-    post_title = f"自动推送 {current_date}"
+    post_title = f"封就封吧hhh最好把这个github的ip也封了，再见"
     
     print(f"📄 帖子标题: {post_title}")
     print(f"📝 内容长度: {len(post_content)} 字符")
